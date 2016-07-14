@@ -50,6 +50,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <time.h>
 
 /* Syntax highlight types */
 #define HL_NORMAL 0
@@ -65,6 +66,7 @@
 #define HL_HIGHLIGHT_STRINGS (1<<0)
 #define HL_HIGHLIGHT_NUMBERS (1<<1)
 
+// editor syntax 语法高亮
 struct editorSyntax {
     char **filematch;
     char **keywords;
@@ -74,14 +76,16 @@ struct editorSyntax {
     int flags;
 };
 
+
+//editor row 一行的数据
 /* This structure represents a single line of the file we are editing. */
 typedef struct erow {
-    int idx;            /* Row index in the file, zero-based. */
-    int size;           /* Size of the row, excluding the null term. */
-    int rsize;          /* Size of the rendered row. */
-    char *chars;        /* Row content. */
-    char *render;       /* Row content "rendered" for screen (for TABs). */
-    unsigned char *hl;  /* Syntax highlight type for each character in render.*/
+    int idx;            /* Row index in the file, zero-based. 索引 */
+    int size;           /* Size of the row, excluding the null term.  一行的大小*/
+    int rsize;          /* Size of the rendered row.  渲染的一行大小，这个值>= size*/
+    char *chars;        /* Row content. 一行的内容*/
+    char *render;       /* Row content "rendered" for screen (for TABs). 渲染的内容  添加了一些终端控制符*/
+    unsigned char *hl;  /* Syntax highlight type for each character in render. 高亮类型 内容  \003\003每一个字符都是高亮类型*/
     int hl_oc;          /* Row had open comment at end in last syntax highlight
                            check. */
 } erow;
@@ -91,19 +95,19 @@ typedef struct hlcolor {
 } hlcolor;
 
 struct editorConfig {
-    int cx,cy;  /* Cursor x and y position in characters */
-    int rowoff;     /* Offset of row displayed. */
+    int cx,cy;  /* Cursor x and y position in characters  光标的x,y位置*/
+    int rowoff;     /* Offset of row displayed.  显示的偏移量*/
     int coloff;     /* Offset of column displayed. */
-    int screenrows; /* Number of rows that we can show */
-    int screencols; /* Number of cols that we can show */
-    int numrows;    /* Number of rows */
-    int rawmode;    /* Is terminal raw mode enabled? */
-    erow *row;      /* Rows */
+    int screenrows; /* Number of rows that we can show  屏幕能显示多少行*/
+    int screencols; /* Number of cols that we can show 屏幕能显示多少列*/
+    int numrows;    /* Number of rows 实际多少行*/
+    int rawmode;    /* Is terminal raw mode enabled?  raw 模式*/
+    erow *row;      /* Rows  真正的内容 row指针，row行指针 row[0] row[1] 以numrows数量，因为内存中连续存储的，所以就可以for numrows来遍历所有的row*/
     int dirty;      /* File modified but not saved. */
-    char *filename; /* Currently open filename */
-    char statusmsg[80];
-    time_t statusmsg_time;
-    struct editorSyntax *syntax;    /* Current syntax highlight, or NULL. */
+    char *filename; /* Currently open filename 文件名字*/
+    char statusmsg[80];   //状态
+    time_t statusmsg_time;  //状态条时间
+    struct editorSyntax *syntax;    /* Current syntax highlight, or NULL.语法高亮 */
 };
 
 static struct editorConfig E;
@@ -892,6 +896,7 @@ void editorRefreshScreen(void) {
             if (len > E.screencols) len = E.screencols;
             char *c = r->render+E.coloff;
             unsigned char *hl = r->hl+E.coloff;
+            printf("####----%s\n",hl);
             int j;
             for (j = 0; j < len; j++) {
                 if (hl[j] == HL_NONPRINT) {
@@ -1261,7 +1266,7 @@ int main(int argc, char **argv) {
     initEditor();
     editorSelectSyntaxHighlight(argv[1]);
     editorOpen(argv[1]);
-    enableRawMode(STDIN_FILENO);
+    //enableRawMode(STDIN_FILENO);
     editorSetStatusMessage(
         "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
     while(1) {
