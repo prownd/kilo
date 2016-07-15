@@ -103,15 +103,17 @@ struct editorConfig {
     int numrows;    /* Number of rows 实际多少行*/
     int rawmode;    /* Is terminal raw mode enabled?  raw 模式*/
     erow *row;      /* Rows  真正的内容 row指针，row行指针 row[0] row[1] 以numrows数量，因为内存中连续存储的，所以就可以for numrows来遍历所有的row*/
-    int dirty;      /* File modified but not saved. */
+    int dirty;      /* File modified but not saved. 是否被修改*/
     char *filename; /* Currently open filename 文件名字*/
     char statusmsg[80];   //状态
     time_t statusmsg_time;  //状态条时间
     struct editorSyntax *syntax;    /* Current syntax highlight, or NULL.语法高亮 */
 };
 
+//全局 editorConfig 变量
 static struct editorConfig E;
 
+//键盘按键类型
 enum KEY_ACTION{
         KEY_NULL = 0,       /* NULL */
         CTRL_C = 3,         /* Ctrl-c */
@@ -357,6 +359,7 @@ int is_separator(int c) {
     return c == '\0' || isspace(c) || strchr(",.()+-/*=~%[];",c) != NULL;
 }
 
+//这一行是注释的其中一行，那么就返回1 否则就返回0
 /* Return true if the specified row last char is part of a multi line comment
  * that starts at this row or at one before, and does not end at the end
  * of the row but spawns to the next row. */
@@ -367,10 +370,15 @@ int editorRowHasOpenComment(erow *row) {
     return 0;
 }
 
+//设置每一行的语法高亮
 /* Set every byte of row->hl (that corresponds to every character in the line)
  * to the right syntax highlight type (HL_* defines). */
 void editorUpdateSyntax(erow *row) {
+    //高亮是 render 数组每一个字符对应 hl数组的每一个高亮类型。一一对应
+    //例如 render  "main{"
+    //     hl      "44440"  0 是正常，4是关键词高亮
     row->hl = realloc(row->hl,row->rsize);
+    //先设置正常
     memset(row->hl,HL_NORMAL,row->rsize);
 
     if (E.syntax == NULL) return; /* No syntax, everything is HL_NORMAL. */
@@ -399,7 +407,8 @@ void editorUpdateSyntax(erow *row) {
         in_comment = 1;
 
     while(*p) {
-        /* Handle // comments. */
+        /* Handle // comments. */ 
+        //处理单行注释  scs[0]='/' scs[1]='/'
         if (prev_sep && *p == scs[0] && *(p+1) == scs[1]) {
             /* From here to end is a comment */
             memset(row->hl+i,HL_COMMENT,row->size-i);
@@ -407,6 +416,7 @@ void editorUpdateSyntax(erow *row) {
         }
 
         /* Handle multi line comments. */
+        //mce="/*"
         if (in_comment) {
             row->hl[i] = HL_MLCOMMENT;
             if (*p == mce[0] && *(p+1) == mce[1]) {
@@ -430,6 +440,7 @@ void editorUpdateSyntax(erow *row) {
         }
 
         /* Handle "" and '' */
+        //处理  "" */
         if (in_string) {
             row->hl[i] = HL_STRING;
             if (*p == '\\') {
@@ -458,7 +469,7 @@ void editorUpdateSyntax(erow *row) {
             prev_sep = 0;
             continue;
         }
-
+        //处理数字
         /* Handle numbers */
         if ((isdigit(*p) && (prev_sep || row->hl[i-1] == HL_NUMBER)) ||
             (*p == '.' && i >0 && row->hl[i-1] == HL_NUMBER)) {
@@ -468,9 +479,12 @@ void editorUpdateSyntax(erow *row) {
             continue;
         }
 
+        //处理关键词高亮
         /* Handle keywords and lib calls */
         if (prev_sep) {
             int j;
+            //keywords[j] 是一个关键词 例如switch等
+            //要比较n次，n个关键词
             for (j = 0; keywords[j]; j++) {
                 int klen = strlen(keywords[j]);
                 int kw2 = keywords[j][klen-1] == '|';
@@ -500,6 +514,7 @@ void editorUpdateSyntax(erow *row) {
     /* Propagate syntax change to the next row if the open commen
      * state changed. This may recursively affect all the following rows
      * in the file. */
+    //如果注释状态变化，要影响下面的行
     int oc = editorRowHasOpenComment(row);
     if (row->hl_oc != oc && row->idx+1 < E.numrows)
         editorUpdateSyntax(&E.row[row->idx+1]);
@@ -520,6 +535,7 @@ int editorSyntaxToColor(int hl) {
     }
 }
 
+//根据文件的后缀类型，判断用什么的高亮方法
 /* Select the syntax highlight scheme depending on the filename,
  * setting it in the global state E.syntax. */
 void editorSelectSyntaxHighlight(char *filename) {
@@ -542,6 +558,7 @@ void editorSelectSyntaxHighlight(char *filename) {
 
 /* ======================= Editor rows implementation ======================= */
 
+//渲染每一行，row 有原始数据和渲染数据
 /* Update the rendered version and the syntax highlight of a row. */
 void editorUpdateRow(erow *row) {
     int tabs = 0, nonprint = 0, j, idx;
@@ -554,6 +571,7 @@ void editorUpdateRow(erow *row) {
 
     row->render = malloc(row->size + tabs*8 + nonprint*9 + 1);
     idx = 0;
+    //render中将tab变为8个空格
     for (j = 0; j < row->size; j++) {
         if (row->chars[j] == TAB) {
             row->render[idx++] = ' ';
@@ -562,17 +580,24 @@ void editorUpdateRow(erow *row) {
             row->render[idx++] = row->chars[j];
         }
     }
+    //render 行的长度
     row->rsize = idx;
+    
+
     row->render[idx] = '\0';
 
     /* Update the syntax highlighting attributes of the row. */
+    //每一行设置语法高亮
     editorUpdateSyntax(row);
 }
 
+
+//插入一行数据
 /* Insert a row at the specified position, shifting the other rows on the bottom
  * if required. */
 void editorInsertRow(int at, char *s, size_t len) {
     if (at > E.numrows) return;
+    //因为row行数据是连续存放的，所以新插入一行的花，就要重新realloc内存
     E.row = realloc(E.row,sizeof(erow)*(E.numrows+1));
     if (at != E.numrows) {
         memmove(E.row+at+1,E.row+at,sizeof(E.row[0])*(E.numrows-at));
@@ -586,6 +611,7 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.row[at].render = NULL;
     E.row[at].rsize = 0;
     E.row[at].idx = at;
+    //更新行数据 和渲染数据
     editorUpdateRow(E.row+at);
     E.numrows++;
     E.dirty++;
@@ -774,6 +800,7 @@ void editorDelChar() {
     E.dirty++;
 }
 
+//读取文件内容到内存中，存放到E中，一行一行的存放到erow中。erow字符指针数组
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
 int editorOpen(char *filename) {
@@ -796,8 +823,10 @@ int editorOpen(char *filename) {
     size_t linecap = 0;
     ssize_t linelen;
     while((linelen = getline(&line,&linecap,fp)) != -1) {
+        //读取一行数据
         if (linelen && (line[linelen-1] == '\n' || line[linelen-1] == '\r'))
-            line[--linelen] = '\0';
+            line[--linelen] = '\0';/*去掉最后的\r\n*/
+        //插入一行，设置行渲染内容
         editorInsertRow(E.numrows,line,linelen);
     }
     free(line);
@@ -1238,6 +1267,7 @@ int editorFileWasModified(void) {
     return E.dirty;
 }
 
+// 初始化 E  得到屏幕行数 和 列数
 void initEditor(void) {
     E.cx = 0;
     E.cy = 0;
@@ -1254,6 +1284,7 @@ void initEditor(void) {
         perror("Unable to query the screen for size (columns / rows)");
         exit(1);
     }
+    //底部的两行是显示 status message 
     E.screenrows -= 2; /* Get room for status bar. */
 }
 
