@@ -730,6 +730,7 @@ void editorInsertChar(int c) {
 
 /* Inserting a newline is slightly complex as we have to handle inserting a
  * newline in the middle of a line, splitting the line as needed. */
+//enter插入新的一行数据
 void editorInsertNewline(void) {
     int filerow = E.rowoff+E.cy;
     int filecol = E.coloff+E.cx;
@@ -837,7 +838,9 @@ int editorOpen(char *filename) {
 
 /* Save the current file on disk. Return 0 on success, 1 on error. */
 int editorSave(void) {
+	//保存的是E.erow数组中的chars数据
     int len;
+	//E.erow 中的数据存放到一个char*指针中
     char *buf = editorRowsToString(&len);
     int fd = open(E.filename,O_RDWR|O_CREAT,0644);
     if (fd == -1) goto writeerr;
@@ -886,6 +889,7 @@ void abFree(struct abuf *ab) {
     free(ab->b);
 }
 
+//将ebow数组中的数据  存放到abuf 中。
 /* This function writes the whole screen using VT100 escape characters
  * starting from the logical state of the editor in the global state 'E'. */
 void editorRefreshScreen(void) {
@@ -899,6 +903,7 @@ void editorRefreshScreen(void) {
     for (y = 0; y < E.screenrows; y++) {
         int filerow = E.rowoff+y;
 
+		//如果是空文件说明文字和版本号
         if (filerow >= E.numrows) {
             if (E.numrows == 0 && y == E.screenrows/3) {
                 char welcome[80];
@@ -918,7 +923,7 @@ void editorRefreshScreen(void) {
         }
 
         r = &E.row[filerow];
-
+	    //进行高亮数据
         int len = r->rsize - E.coloff;
         int current_color = -1;
         if (len > 0) {
@@ -961,6 +966,7 @@ void editorRefreshScreen(void) {
     }
 
     /* Create a two rows status. First row: */
+	//添加底部的状态显示
     abAppend(&ab,"\x1b[0K",4);
     abAppend(&ab,"\x1b[7m",4);
     char status[80], rstatus[80];
@@ -1003,6 +1009,7 @@ void editorRefreshScreen(void) {
     snprintf(buf,sizeof(buf),"\x1b[%d;%dH",E.cy+1,cx);
     abAppend(&ab,buf,strlen(buf));
     abAppend(&ab,"\x1b[?25h",6); /* Show cursor. */
+	//显示到终端上
     write(STDOUT_FILENO,ab.b,ab.len);
     abFree(&ab);
 }
@@ -1021,6 +1028,7 @@ void editorSetStatusMessage(const char *fmt, ...) {
 
 #define KILO_QUERY_LEN 256
 
+//在E.erow 的rander 查找
 void editorFind(int fd) {
     char query[KILO_QUERY_LEN+1] = {0};
     int qlen = 0;
@@ -1191,6 +1199,7 @@ void editorMoveCursor(int key) {
     }
 }
 
+//处理输入的字符
 /* Process events arriving from the standard input, which is, the user
  * is typing stuff on the terminal. */
 #define KILO_QUIT_TIMES 3
@@ -1210,6 +1219,7 @@ void editorProcessKeypress(int fd) {
         break;
     case CTRL_Q:        /* Ctrl-q */
         /* Quit if the file was already saved. */
+		// ctrl + q 三次确认，退出
         if (E.dirty && quit_times) {
             editorSetStatusMessage("WARNING!!! File has unsaved changes. "
                 "Press Ctrl-Q %d more times to quit.", quit_times);
