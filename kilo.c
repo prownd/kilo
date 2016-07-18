@@ -242,6 +242,7 @@ fatal:
 
 /* Read a key from the terminal put in raw mode, trying to handle
  * escape sequences. */
+//读取标准输入输入的按键
 int editorReadKey(int fd) {
     int nread;
     char c, seq[3];
@@ -522,6 +523,7 @@ void editorUpdateSyntax(erow *row) {
 }
 
 /* Maps syntax highlight token types to terminal colors. */
+//将高亮类型转化为具体的终端高亮颜色
 int editorSyntaxToColor(int hl) {
     switch(hl) {
     case HL_COMMENT:
@@ -626,6 +628,7 @@ void editorFreeRow(erow *row) {
 
 /* Remove the row at the specified position, shifting the remainign on the
  * top. */
+//删除一行
 void editorDelRow(int at) {
     erow *row;
 
@@ -642,6 +645,7 @@ void editorDelRow(int at) {
  * Returns the pointer to the heap-allocated string and populate the
  * integer pointed by 'buflen' with the size of the string, escluding
  * the final nulterm. */
+//将E.erow中数据转化为一个单一的字符串
 char *editorRowsToString(int *buflen) {
     char *buf = NULL, *p;
     int totlen = 0;
@@ -666,6 +670,7 @@ char *editorRowsToString(int *buflen) {
 
 /* Insert a character at the specified position in a row, moving the remaining
  * chars on the right if needed. */
+//插入一行
 void editorRowInsertChar(erow *row, int at, int c) {
     if (at > row->size) {
         /* Pad the string with spaces if the insert location is outside the
@@ -689,6 +694,7 @@ void editorRowInsertChar(erow *row, int at, int c) {
 }
 
 /* Append the string 's' at the end of a row */
+//追加字符串
 void editorRowAppendString(erow *row, char *s, size_t len) {
     row->chars = realloc(row->chars,row->size+len+1);
     memcpy(row->chars+row->size,s,len);
@@ -699,6 +705,7 @@ void editorRowAppendString(erow *row, char *s, size_t len) {
 }
 
 /* Delete the character at offset 'at' from the specified row. */
+//删除一行中某个位置的字符
 void editorRowDelChar(erow *row, int at) {
     if (row->size <= at) return;
     memmove(row->chars+at,row->chars+at+1,row->size-at);
@@ -708,6 +715,7 @@ void editorRowDelChar(erow *row, int at) {
 }
 
 /* Insert the specified char at the current prompt position. */
+//一行中插入某个字符
 void editorInsertChar(int c) {
     int filerow = E.rowoff+E.cy;
     int filecol = E.coloff+E.cx;
@@ -767,6 +775,7 @@ fixcursor:
 }
 
 /* Delete the char at the current prompt position. */
+//删除当前指针位置的字符
 void editorDelChar() {
     int filerow = E.rowoff+E.cy;
     int filecol = E.coloff+E.cx;
@@ -804,6 +813,7 @@ void editorDelChar() {
 //读取文件内容到内存中，存放到E中，一行一行的存放到erow中。erow字符指针数组
 /* Load the specified program in the editor memory and returns 0 on success
  * or 1 on error. */
+//读取文件内容，放到E.erow连续内存中
 int editorOpen(char *filename) {
     FILE *fp;
 
@@ -837,6 +847,7 @@ int editorOpen(char *filename) {
 }
 
 /* Save the current file on disk. Return 0 on success, 1 on error. */
+//保存文件内容 保存的是E.erow.chars 原始内容
 int editorSave(void) {
 	//保存的是E.erow数组中的chars数据
     int len;
@@ -889,9 +900,9 @@ void abFree(struct abuf *ab) {
     free(ab->b);
 }
 
-//将ebow数组中的数据  存放到abuf 中。
 /* This function writes the whole screen using VT100 escape characters
  * starting from the logical state of the editor in the global state 'E'. */
+//将ebow数组中的数据  存放到abuf 中。
 void editorRefreshScreen(void) {
     int y;
     erow *r;
@@ -1016,6 +1027,7 @@ void editorRefreshScreen(void) {
 
 /* Set an editor status message for the second line of the status, at the
  * end of the screen. */
+//设置底部的状态信息
 void editorSetStatusMessage(const char *fmt, ...) {
     va_list ap;
     va_start(ap,fmt);
@@ -1126,6 +1138,7 @@ void editorFind(int fd) {
 /* ========================= Editor events handling  ======================== */
 
 /* Handle cursor position change because arrow keys were pressed. */
+//移动光标
 void editorMoveCursor(int key) {
     int filerow = E.rowoff+E.cy;
     int filecol = E.coloff+E.cx;
@@ -1199,9 +1212,9 @@ void editorMoveCursor(int key) {
     }
 }
 
-//处理输入的字符
 /* Process events arriving from the standard input, which is, the user
  * is typing stuff on the terminal. */
+//处理输入的字符
 #define KILO_QUIT_TIMES 3
 void editorProcessKeypress(int fd) {
     /* When the file is modified, requires Ctrl-q to be pressed N times
@@ -1273,6 +1286,7 @@ void editorProcessKeypress(int fd) {
     quit_times = KILO_QUIT_TIMES; /* Reset it to the original value. */
 }
 
+//文件是否被修改
 int editorFileWasModified(void) {
     return E.dirty;
 }
