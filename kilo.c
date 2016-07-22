@@ -55,8 +55,8 @@
 /* Syntax highlight types */
 #define HL_NORMAL 0
 #define HL_NONPRINT 1
-#define HL_COMMENT 2   /* Single line comment. */
-#define HL_MLCOMMENT 3 /* Multi-line comment. */
+#define HL_COMMENT 2   /* Single line comment. 单行注释*/
+#define HL_MLCOMMENT 3 /* Multi-line comment. 多行注释*/
 #define HL_KEYWORD1 4
 #define HL_KEYWORD2 5
 #define HL_STRING 6
@@ -90,6 +90,8 @@ typedef struct erow {
                            check. */
 } erow;
 
+
+//这个结构体其实没有被使用，不知道为什么要定义，或许为了以后扩展吧
 typedef struct hlcolor {
     int r,g,b;
 } hlcolor;
@@ -177,6 +179,7 @@ char *C_HL_keywords[] = {
 
 /* Here we define an array of syntax highlights by extensions, keywords,
  * comments delimiters and flags. */
+ //高亮数据数组 实际上就一种类型c/c++
 struct editorSyntax HLDB[] = {
     {
         /* C / C++ */
@@ -1313,20 +1316,50 @@ void initEditor(void) {
 }
 
 int main(int argc, char **argv) {
+    
     if (argc != 2) {
         fprintf(stderr,"Usage: kilo <filename>\n");
         exit(1);
     }
 
-    initEditor();
-    editorSelectSyntaxHighlight(argv[1]);
+    initEditor();//就是初始化全局变量E
+    
+    editorSelectSyntaxHighlight(argv[1]);//根据文件的后缀类型，判断用什么的高亮方法
+    
+    
+    /*
+    *E中的erow指针后面是一段连续的erow类型结构内存，数量是numrows个，erow是头指针。
+    *读取文件内容，放到E.erow连续内存中
+    *读取一行，原始数据放置到erow中的chars中，渲染后的数据放到erow的render中  
+    */
     editorOpen(argv[1]);
-    //enableRawMode(STDIN_FILENO);
+    
+    
+    enableRawMode(STDIN_FILENO);//启用终端的raw模式
+    
+    
     editorSetStatusMessage(
-        "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+        "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");//设置底部的状态信息栏，占两行
+        
+        
+    //真正的主逻辑是下面的几行
     while(1) {
         editorRefreshScreen();
         editorProcessKeypress(STDIN_FILENO);
+        /*
+        简单说就是editorRefreshScreen();
+	将ebow数组中的数据  存放到abuf的b变量中
+	struct abuf {
+	    char *b;
+	    int len;
+	};
+	然后write到终端输出
+	editorProcessKeypress(STDIN_FILENO);
+	读取键盘的input输入，进行相应的处理
+	插入新行，保存，查找，删除一行，添加字符，换行等
+	都是操作erow中的原始数据chars,对应的进行erow中的render更新。
+	然后由editorRefreshScreen函数更新到屏幕上。
+        */
     }
     return 0;
 }
